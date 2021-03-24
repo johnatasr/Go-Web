@@ -1,7 +1,8 @@
 <html>
     <head>
         <title>Detalhes</title>
-        {{ bootStrapURL }}
+        <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.3.1/css/bootstrap.min.css" 
+								integrity="sha384-ggOyR0iXCbMQv3Xipma34MD+dH/1fQ784/j6cY/iJTQUOhcWr7x9JvoRxT2MZw1T" crossorigin="anonymous">
     </head>
     <body>
         <div class="container">
@@ -9,11 +10,19 @@
             <div class="row">
                 <h2>As lingugens que sei</h2>
                 <ul class="list-group">
-                    <li class="list-group-item">{{ lang.Languages["Python"] }}</li>
-                    <li class="list-group-item">A second item</li>
-                    <li class="list-group-item">A third item</li>
-                    <li class="list-group-item">A fourth item</li>
+                    <li class="list-group-item">Python</li>
+                    <li class="list-group-item">Javascript</li>
+                    <li class="list-group-item">Typescript</li>
+                    <li class="list-group-item">PHP</li>
                 </ul>
+            </div>
+            <div class="row">
+                <div class="col">
+                    <button><a href="/">Home</a></button>
+                </div>
+                <div class="col">
+                    <button><a href="/contato">Contato</a></button>
+                </div>
             </div>
         </div>
     </body>

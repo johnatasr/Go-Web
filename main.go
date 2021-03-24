@@ -6,9 +6,11 @@ import (
 	"text/template"
 	"time"
 
+	"github.com/go-redis/redis"
 	"github.com/gorilla/mux"
 )
 
+var client *redis.Client
 var templates *template.Template
 
 var bootStrapURL string = `<link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.3.1/css/bootstrap.min.css" 
@@ -20,34 +22,48 @@ type indexStruct struct {
 }
 
 func handleMain(w http.ResponseWriter, r *http.Request) {
+	comments, err := client.LRange("comments", 0, 10).Result()
+
+	if err != nil {
+		return
+	}
+
 	date := time.Now()
 	templates.ExecuteTemplate(w, "index.html", date.Format("01-02-2006 15:04:05"))
+	templates.ExecuteTemplate(w, "index.html", comments)
 	//fmt.Fprint(w, "Aqui é a pagina principal")
 }
 
 func handleDetais(w http.ResponseWriter, r *http.Request) {
 
-	lang := indexStruct{
-		Languages: map[string]string{
-			"Python":     "É que mais domino",
-			"Javascript": "Gosto bastante principalmente do React",
-			"Typescript": "Deveria utilizar mais e estudar",
-			"PHP":        "Trabalho com mais não gosto muito",
-		},
-		bootstrap: bootStrapURL,
-	}
+	// languages := map[string]string{
+	// 	"Python":     "É que mais domino",
+	// 	"Javascript": "Gosto bastante principalmente do React",
+	// 	"Typescript": "Deveria utilizar mais e estudar",
+	// 	"PHP":        "Trabalho com mais não gosto muito",
+	// }
 
-	templates.ExecuteTemplate(w, "details", lang)
+	// bootstrap := bootStrapURL
+
+	// arr := []interface{}{languages, bootstrap}
+
+	nome := "Johnatas"
+
+	templates.ExecuteTemplate(w, "details.html", nome)
 	//fmt.Fprint(w, "Aqui é a página de detalhes")
 }
 
 func handleContact(w http.ResponseWriter, r *http.Request) {
-	// const gitHubUrl string = `<a href="https://github.com/johnatasr?tab=repositories">johnatasr?tab=repositories</a>`
-	templates.ExecuteTemplate(w, "contact.html", nil)
+	const gitHubUrl string = `<a href="https://github.com/johnatasr?tab=repositories">johnatasr?tab=repositories</a>`
+	templates.ExecuteTemplate(w, "contact.html", gitHubUrl)
 	//fmt.Fprint(w, "Olhai meu Github é https://github.com/johnatasr?tab=repositories")
 }
 
 func main() {
+
+	client = redis.NewClient(&redis.Options{
+		Addr: "localhost:6379",
+	})
 
 	templates = template.Must(template.ParseGlob("templates/*.html"))
 	r := mux.NewRouter()
