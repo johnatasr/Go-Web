@@ -67,6 +67,14 @@ func testGetHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func handleGetMain(w http.ResponseWriter, r *http.Request) {
+
+	session, _ := store.Get(r, "session")
+	untyped, ok := session.Values["username"]
+
+	if !ok {
+		return
+	}
+
 	comments, err := client.LRange("comments", 0, 10).Result()
 
 	if err != nil {
