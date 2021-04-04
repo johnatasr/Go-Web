@@ -38,6 +38,17 @@ func handlePostLogin(w http.ResponseWriter, r *http.Request) {
 	session.Save(r, w)
 }
 
+func validateSession() {
+
+	session, _ := store.Get(r, "session")
+	untyped, ok := session.Values["username"]
+
+	if !ok {
+		return
+	}
+
+}
+
 func testGetHandler(w http.ResponseWriter, r *http.Request) {
 
 	session, _ := store.Get(r, "session")
