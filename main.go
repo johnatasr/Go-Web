@@ -9,6 +9,7 @@ import (
 	"github.com/go-redis/redis"
 	"github.com/gorilla/mux"
 	"github.com/gorilla/sessions"
+	"golang.org/x/crypto/bcrypt"
 )
 
 var client *redis.Client
@@ -32,21 +33,30 @@ func handlePostLogin(w http.ResponseWriter, r *http.Request) {
 	r.ParseForm()
 	username := r.PostForm.Get("username")
 	password := r.PostForm.Get("password")
+
+	hash, err := client.Get("user: " + username).Bytes()
+
+	if err == redis.Nil {
+		templates.ExecuteTemplate(w, "login.html", "Usuário desconhecido")
+		return
+	} else if err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		w.Write([]byte("Internal server error"))
+		return
+	}
+
+	err = bcrypt.CompareHashAndPassword(hash, []byte(password))
+
+	if err != nil {
+		templates.ExecuteTemplate(w, "login.html", "Login inválido")
+		return
+	}
+
 	session, _ := store.Get(r, "session")
 	session.Values["username"] = username
 	session.Values["password"] = password
 	session.Save(r, w)
-}
-
-func validateSession() {
-
-	session, _ := store.Get(r, "session")
-	untyped, ok := session.Values["username"]
-
-	if !ok {
-		return
-	}
-
+	http.Redirect(w, r, "/", 302)
 }
 
 func testGetHandler(w http.ResponseWriter, r *http.Request) {
@@ -66,18 +76,49 @@ func testGetHandler(w http.ResponseWriter, r *http.Request) {
 	w.Write([]byte(username))
 }
 
+func handleGetRegistre(w http.ResponseWriter, r *http.Request) {
+	templates.ExecuteTemplate(w, "registre.html", nil)
+}
+
+func handlePostRegistre(w http.ResponseWriter, r *http.Request) {
+	r.ParseForm()
+	username := r.PostForm.Get("username")
+	password := r.PostForm.Get("password")
+	cost := bcrypt.DefaultCost
+	hash, err := bcrypt.GenerateFromPassword([]byte(password), cost)
+
+	if err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		w.Write([]byte("Internal server error: Erro em gerar senha"))
+		return
+	}
+
+	err = client.Set("user: "+username, hash, 0).Err()
+
+	if err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		w.Write([]byte("Internal server error: Erro ao salver cliente"))
+		return
+	}
+
+	http.Redirect(w, r, "/login", 302)
+}
+
 func handleGetMain(w http.ResponseWriter, r *http.Request) {
 
 	session, _ := store.Get(r, "session")
-	untyped, ok := session.Values["username"]
+	_, ok := session.Values["username"]
 
 	if !ok {
+		http.Redirect(w, r, "/login", 302)
 		return
 	}
 
 	comments, err := client.LRange("comments", 0, 10).Result()
 
 	if err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		w.Write([]byte("Erro ao carregar comentários"))
 		return
 	}
 
@@ -93,7 +134,13 @@ func handleGetMain(w http.ResponseWriter, r *http.Request) {
 func handlePostMain(w http.ResponseWriter, r *http.Request) {
 	r.ParseForm()
 	comment := r.PostForm.Get("comment")
-	client.LPush("comments", comment)
+	err := client.LPush("comments", comment).Err()
+
+	if err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		w.Write([]byte("Erro ao salvar comentário"))
+		return
+	}
 	http.Redirect(w, r, "/", 302)
 }
 
@@ -122,6 +169,18 @@ func handleContact(w http.ResponseWriter, r *http.Request) {
 	//fmt.Fprint(w, "Olhai meu Github é https://github.com/johnatasr?tab=repositories")
 }
 
+func AuthRequired(handler http.HandlerFunc) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		session, _ := store.Get(r, "session")
+		_, ok := session.Values["username"]
+		if !ok {
+			http.Redirect(w, r, "/login", 302)
+			return
+		}
+		handler.ServeHTTP(w, r)
+	}
+}
+
 func main() {
 
 	client = redis.NewClient(&redis.Options{
@@ -135,10 +194,12 @@ func main() {
 	r := mux.NewRouter()
 	r.HandleFunc("/login", handleGetLogin).Methods("GET")
 	r.HandleFunc("/login", handlePostLogin).Methods("POST")
-	r.HandleFunc("/", handleGetMain).Methods("GET")
-	r.HandleFunc("/", handlePostMain).Methods("POST")
-	r.HandleFunc("/detalhes", handleDetais).Methods("GET")
-	r.HandleFunc("/contato", handleContact).Methods("GET")
+	r.HandleFunc("/registrar", handleGetRegistre).Methods("GET")
+	r.HandleFunc("/registrar", handlePostRegistre).Methods("POST")
+	r.HandleFunc("/", AuthRequired(handleGetMain)).Methods("GET")
+	r.HandleFunc("/", AuthRequired(handlePostMain)).Methods("POST")
+	r.HandleFunc("/detalhes", AuthRequired(handleDetais)).Methods("GET")
+	r.HandleFunc("/contato", AuthRequired(handleContact)).Methods("GET")
 
 	r.PathPrefix("/static/").Handler(http.StripPrefix("/static/", fileServer))
 
