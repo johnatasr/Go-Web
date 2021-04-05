@@ -8,8 +8,8 @@ import (
 )
 
 var (
-	ErrUserNotFound = errors.New("user not found")
-	ErrInvalidLogin = errors.New("invalid login")
+	ErrUserNotFound = errors.New("Usuário não encontrado")
+	ErrInvalidLogin = errors.New("Login Inválido")
 )
 
 func AuthenticateUser(username, password string) error {

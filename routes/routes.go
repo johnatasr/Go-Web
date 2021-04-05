@@ -11,45 +11,56 @@ import (
 )
 
 func NewRouter() *mux.Router {
+
+	staticDir := http.Dir("./static/")
+	fileServer := http.FileServer(staticDir)
+
 	r := mux.NewRouter()
-	r.HandleFunc("/", middleware.AuthRequired(indexGetHandler)).Methods("GET")
-	r.HandleFunc("/", middleware.AuthRequired(indexPostHandler)).Methods("POST")
-	r.HandleFunc("/login", loginGetHandler).Methods("GET")
-	r.HandleFunc("/login", loginPostHandler).Methods("POST")
-	r.HandleFunc("/register", registerGetHandler).Methods("GET")
-	r.HandleFunc("/register", registerPostHandler).Methods("POST")
-	fs := http.FileServer(http.Dir("./static/"))
-	r.PathPrefix("/static/").Handler(http.StripPrefix("/static/", fs))
+	r.HandleFunc("/", middleware.AuthRequired(handleGetIndex)).Methods("GET")
+	r.HandleFunc("/", middleware.AuthRequired(handlePostIndex)).Methods("POST")
+	r.HandleFunc("/login", handleGetLogin).Methods("GET")
+	r.HandleFunc("/login", handlePostLogin).Methods("POST")
+	r.HandleFunc("/registrar", handleGetRegistre).Methods("GET")
+	r.HandleFunc("/registrar", handlePostRegistre).Methods("POST")
+	r.HandleFunc("/detalhes", middleware.AuthRequired(handleDetails)).Methods("GET")
+	r.HandleFunc("/contato", middleware.AuthRequired(handleContact)).Methods("GET")
+	r.PathPrefix("/static/").Handler(http.StripPrefix("/static/", fileServer))
+
 	return r
 }
 
-func indexGetHandler(w http.ResponseWriter, r *http.Request) {
+func handleGetIndex(w http.ResponseWriter, r *http.Request) {
+
 	comments, err := models.GetComments()
+
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
-		w.Write([]byte("Internal server error"))
+		w.Write([]byte("Erro ao carregar comentários"))
 		return
 	}
+
 	utils.ExecuteTemplate(w, "index.html", comments)
 }
 
-func indexPostHandler(w http.ResponseWriter, r *http.Request) {
+func handlePostIndex(w http.ResponseWriter, r *http.Request) {
 	r.ParseForm()
 	comment := r.PostForm.Get("comment")
 	err := models.PostComment(comment)
+
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
-		w.Write([]byte("Internal server error"))
+		w.Write([]byte("Erro ao salvar comentário"))
 		return
 	}
+
 	http.Redirect(w, r, "/", 302)
 }
 
-func loginGetHandler(w http.ResponseWriter, r *http.Request) {
+func handleGetLogin(w http.ResponseWriter, r *http.Request) {
 	utils.ExecuteTemplate(w, "login.html", nil)
 }
 
-func loginPostHandler(w http.ResponseWriter, r *http.Request) {
+func handlePostLogin(w http.ResponseWriter, r *http.Request) {
 	r.ParseForm()
 	username := r.PostForm.Get("username")
 	password := r.PostForm.Get("password")
@@ -57,9 +68,9 @@ func loginPostHandler(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		switch err {
 		case models.ErrUserNotFound:
-			utils.ExecuteTemplate(w, "login.html", "unknown user")
+			utils.ExecuteTemplate(w, "login.html", "Usuário Desconhecido")
 		case models.ErrInvalidLogin:
-			utils.ExecuteTemplate(w, "login.html", "invalid login")
+			utils.ExecuteTemplate(w, "login.html", "Login inválido")
 		default:
 			w.WriteHeader(http.StatusInternalServerError)
 			w.Write([]byte("Internal server error"))
@@ -72,11 +83,11 @@ func loginPostHandler(w http.ResponseWriter, r *http.Request) {
 	http.Redirect(w, r, "/", 302)
 }
 
-func registerGetHandler(w http.ResponseWriter, r *http.Request) {
-	utils.ExecuteTemplate(w, "register.html", nil)
+func handleGetRegistre(w http.ResponseWriter, r *http.Request) {
+	utils.ExecuteTemplate(w, "registre.html", nil)
 }
 
-func registerPostHandler(w http.ResponseWriter, r *http.Request) {
+func handlePostRegistre(w http.ResponseWriter, r *http.Request) {
 	r.ParseForm()
 	username := r.PostForm.Get("username")
 	password := r.PostForm.Get("password")
@@ -87,4 +98,16 @@ func registerPostHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	http.Redirect(w, r, "/login", 302)
+}
+
+func handleDetails(w http.ResponseWriter, r *http.Request) {
+
+	nome := "Johnatas"
+	utils.ExecuteTemplate(w, "details.html", nome)
+
+}
+
+func handleContact(w http.ResponseWriter, r *http.Request) {
+	const gitHubUrl string = `<a href="https://github.com/johnatasr?tab=repositories">johnatasr?tab=repositories</a>`
+	utils.ExecuteTemplate(w, "contact.html", gitHubUrl)
 }
